@@ -1,0 +1,17 @@
+{
+  "name": "mini-llm-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "demo": "npx tsx packages/demo/index.ts",
+    "test-app": "npx tsx packages/test-app/server.ts",
+    "smoke-test": "npx tsx packages/dev-cli/smoke-test.ts"
+  }
+}

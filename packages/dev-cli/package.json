@@ -1,0 +1,15 @@
+{
+  "name": "mini-llm-dev",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mini-llm-dev": "./cli.ts"
+  },
+  "scripts": {
+    "test": "npx tsx smoke-test.ts"
+  },
+  "dependencies": {
+    "mini-llm": "*"
+  }
+}
