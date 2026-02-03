@@ -51,12 +51,14 @@ async function test(name: string, fn: () => Promise<void>) {
   const start = Date.now();
   try {
     await fn();
-    results.push({ name, passed: true, duration: Date.now() - start });
-    console.log(`✅ ${name}`);
+    const duration = Date.now() - start;
+    results.push({ name, passed: true, duration });
+    console.log(`✅ ${name} (${duration}ms)`);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
-    results.push({ name, passed: false, error, duration: Date.now() - start });
-    console.log(`❌ ${name}: ${error}`);
+    const duration = Date.now() - start;
+    results.push({ name, passed: false, error, duration });
+    console.log(`❌ ${name} (${duration}ms): ${error}`);
   }
 }
 
@@ -175,11 +177,43 @@ async function runSmokeTests() {
     assert(url1 === url2, `URLs differ: ${url1} vs ${url2}`);
   });
 
+  console.log("\n[5] Batch behavior (multiple OpenAI requests)\n");
+
+  // Test 9: Batch OpenAI chat completions (sequential, to observe stability and aggregate latency)
+  await test("Batch POST /v1/chat/completions (3 sequential requests)", async () => {
+    const prompts = ["one", "two", "three"];
+
+    for (const p of prompts) {
+      const res = await httpRequest("POST", `${baseUrl}/v1/chat/completions`, {
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: `batch test: ${p}` }],
+        stream: false,
+      });
+
+      assert(
+        [200, 400, 401, 429, 500].includes(res.status),
+        `Unexpected status ${res.status} for prompt ${p}`
+      );
+    }
+  });
+
   // Summary
   console.log("\n" + "=".repeat(50));
   const passed = results.filter((r) => r.passed).length;
   const failed = results.filter((r) => !r.passed).length;
   console.log(`\n📊 Results: ${passed} passed, ${failed} failed\n`);
+
+  if (results.length > 0) {
+    const totalDuration = results.reduce((sum, r) => sum + r.duration, 0);
+    const avgDuration = Math.round(totalDuration / results.length);
+    const slowest = results.reduce((a, b) => (b.duration > a.duration ? b : a));
+    console.log("Performance summary:");
+    console.log(`  Total test time: ${totalDuration}ms`);
+    console.log(`  Average per test: ${avgDuration}ms`);
+    console.log(
+      `  Slowest test: ${slowest.name} (${slowest.duration}ms)`
+    );
+  }
 
   if (failed > 0) {
     console.log("Failed tests:");
