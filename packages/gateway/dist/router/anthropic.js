@@ -1,0 +1,71 @@
+import https from "node:https";
+const ANTHROPIC_HOST = "api.anthropic.com";
+// Connection pooling agent for better performance
+const anthropicAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: 50,
+    maxFreeSockets: 10,
+    timeout: 60000,
+});
+let anthropicKeyIndex = 0;
+function pickAnthropicKey(apiKeys) {
+    if (apiKeys.length === 0)
+        return undefined;
+    const key = apiKeys[anthropicKeyIndex % apiKeys.length];
+    anthropicKeyIndex = (anthropicKeyIndex + 1) % apiKeys.length;
+    return key;
+}
+export function handleAnthropicMessages(res, body, apiKeys, resolvedModel) {
+    // Replace model with resolved upstream model
+    body.model = resolvedModel;
+    const payload = JSON.stringify(body);
+    const apiKey = pickAnthropicKey(apiKeys);
+    if (!apiKey) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "ANTHROPIC_API_KEY not set" }));
+        return;
+    }
+    const options = {
+        hostname: ANTHROPIC_HOST,
+        port: 443,
+        path: "/v1/messages",
+        method: "POST",
+        agent: anthropicAgent,
+        headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+        },
+    };
+    const upstream = https.request(options, (upstreamRes) => {
+        // Stream passthrough - no buffering
+        if (body.stream) {
+            res.writeHead(upstreamRes.statusCode || 200, {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+            });
+            upstreamRes.pipe(res);
+        }
+        else {
+            res.writeHead(upstreamRes.statusCode || 200, {
+                "Content-Type": "application/json",
+            });
+            upstreamRes.pipe(res);
+        }
+    });
+    upstream.on("error", (err) => {
+        console.error("Anthropic upstream error:", err);
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Upstream service unavailable" }));
+    });
+    upstream.on("timeout", () => {
+        upstream.destroy();
+        res.writeHead(504, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Gateway timeout" }));
+    });
+    upstream.write(payload);
+    upstream.end();
+}
+//# sourceMappingURL=anthropic.js.map

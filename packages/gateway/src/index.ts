@@ -1,6 +1,6 @@
-import { startServer, env } from "./server.js";
+import { startServer } from "./server.js";
 
-const port = env.port;
+const port = parseInt(process.env.PORT || "3333", 10);
 
 async function main() {
   let currentPort = port;
@@ -9,7 +9,6 @@ async function main() {
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
       const server = await startServer(currentPort);
-      console.log(`mini-llm-gateway running on http://127.0.0.1:${server.port}`);
       return;
     } catch (e: unknown) {
       if (
@@ -24,7 +23,7 @@ async function main() {
     }
   }
 
-  console.error("Failed to start gateway: all ports occupied");
+  console.error("Failed to start Mini-Passy: all ports occupied");
   process.exit(1);
 }
 

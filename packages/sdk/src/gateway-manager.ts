@@ -1,8 +1,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
 import { waitForHealth } from "./port.js";
-import type { MiniLLMConfig, MiniLLMInstance } from "./types.js";
+import type { MiniPassyConfig, MiniPassyInstance } from "./types.js";
 
 const DEFAULT_PORT = 3333;
 
@@ -10,26 +11,36 @@ let gatewayProcess: ChildProcess | null = null;
 let gatewayPort: number | null = null;
 let readyPromise: Promise<void> | null = null;
 
-function getGatewayEntryPath(): string {
+function getGatewayEntryPath(): { path: string; useNode: boolean } {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
-  // Navigate from sdk/src to gateway/src
-  return join(__dirname, "../../gateway/src/index.ts");
+  // Try to find the built JS version first (for production), fallback to TS (for development)
+  const builtPath = join(__dirname, "../../gateway/dist/index.js");
+  const sourcePath = join(__dirname, "../../gateway/src/index.ts");
+
+  // Check if built version exists
+  if (existsSync(builtPath)) {
+    return { path: builtPath, useNode: true };
+  }
+  return { path: sourcePath, useNode: false };
 }
 
-function spawnGateway(config: MiniLLMConfig): Promise<number> {
+function spawnGateway(config: MiniPassyConfig): Promise<number> {
   return new Promise((resolve, reject) => {
     const port = config.port || DEFAULT_PORT;
-    const gatewayEntry = getGatewayEntryPath();
+    const { path: gatewayEntry, useNode } = getGatewayEntryPath();
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      MINI_LLM_PORT: String(port),
+      PORT: String(port),
       ...config.env,
     };
 
-    // Use tsx to run TypeScript directly
-    gatewayProcess = spawn("npx", ["tsx", gatewayEntry], {
+    // Use node for built JS, tsx for TypeScript source
+    const command = useNode ? "node" : "npx";
+    const args = useNode ? [gatewayEntry] : ["tsx", gatewayEntry];
+
+    gatewayProcess = spawn(command, args, {
       env,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -77,7 +88,7 @@ function spawnGateway(config: MiniLLMConfig): Promise<number> {
   });
 }
 
-async function ensureGateway(config: MiniLLMConfig): Promise<void> {
+async function ensureGateway(config: MiniPassyConfig): Promise<void> {
   if (gatewayPort !== null) {
     // Check if existing gateway is still healthy
     const healthy = await waitForHealth(gatewayPort, 3, 100);
@@ -116,7 +127,7 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-export function createMiniLLM(config: MiniLLMConfig = {}): MiniLLMInstance {
+export function createMiniPassy(config: MiniPassyConfig = {}): MiniPassyInstance {
   return {
     ready(): Promise<void> {
       if (!readyPromise) {

@@ -1,62 +1,63 @@
-export interface EnvConfig {
-  port: number;
-  /**
-   * One or more OpenAI API keys. Parsed from:
-   * - OPENAI_API_KEYS (comma-separated)
-   * - or single OPENAI_API_KEY
-   */
-  openaiApiKeys: string[];
-  /**
-   * One or more Anthropic API keys. Parsed from:
-   * - ANTHROPIC_API_KEYS (comma-separated)
-   * - or single ANTHROPIC_API_KEY
-   */
-  anthropicApiKeys: string[];
-  modelAliases: Record<string, string>;
-}
-
-function parseKeys(single?: string, multiple?: string): string[] {
-  if (multiple && multiple.trim().length > 0) {
-    return multiple
-      .split(",")
-      .map((k) => k.trim())
-      .filter((k) => k.length > 0);
-  }
-
-  if (single && single.trim().length > 0) {
-    return [single.trim()];
-  }
-
-  return [];
-}
+import type { Provider, Alias, EnvConfig } from "./types.js";
 
 export function loadEnv(): EnvConfig {
-  const port = parseInt(process.env.MINI_LLM_PORT || "3333", 10);
+  const port = parseInt(process.env.PORT || "3333", 10);
+  const providers = new Map<string, Provider>();
+  const aliases = new Map<string, Alias>();
 
-  const openaiApiKeys = parseKeys(
-    process.env.OPENAI_API_KEY,
-    process.env.OPENAI_API_KEYS
-  );
-
-  const anthropicApiKeys = parseKeys(
-    process.env.ANTHROPIC_API_KEY,
-    process.env.ANTHROPIC_API_KEYS
-  );
-
-  let modelAliases: Record<string, string> = {};
-  const aliasesEnv = process.env.MINI_LLM_MODEL_ALIASES;
-  if (aliasesEnv) {
-    try {
-      modelAliases = JSON.parse(aliasesEnv);
-    } catch {
-      // Invalid JSON, ignore
+  // Parse PROVIDER_*_URL and PROVIDER_*_KEY
+  for (const [key, value] of Object.entries(process.env)) {
+    const match = key.match(/^PROVIDER_(.+)_URL$/);
+    if (match && value) {
+      const name = match[1].toLowerCase();
+      const url = value;
+      const apiKey = process.env[`PROVIDER_${match[1]}_KEY`];
+      if (apiKey) {
+        providers.set(name, {
+          name,
+          url,
+          key: apiKey,
+          openai: false,
+          anthropic: false,
+          models: [],
+        });
+      }
     }
   }
 
-  return {
-    port,
-    openaiApiKeys,
-    anthropicApiKeys,
-    modelAliases,
-  };
+  // Parse ALIAS_* and ALIAS_*_FALLBACK
+  for (const [key, value] of Object.entries(process.env)) {
+    const match = key.match(/^ALIAS_(.+)$/);
+    if (match && value && !key.endsWith("_FALLBACK")) {
+      const name = match[1].toLowerCase();
+      // Parse "provider:model" or just "provider" (uses same model name)
+      const [providerName, modelName] = value.includes(":")
+        ? value.split(":")
+        : [value, name];
+
+      const fallbackKey = `ALIAS_${match[1]}_FALLBACK`;
+      const fallbackStr = process.env[fallbackKey];
+      const fallbackProviders = fallbackStr
+        ? fallbackStr.split(",").map((s) => s.trim().toLowerCase())
+        : [];
+
+      // Build targets list: primary + fallbacks
+      const targets = [
+        { provider: providerName.toLowerCase(), model: modelName || name },
+      ];
+      for (const fb of fallbackProviders) {
+        if (fb !== providerName.toLowerCase()) {
+          targets.push({ provider: fb, model: modelName || name });
+        }
+      }
+
+      aliases.set(name, {
+        name,
+        targets,
+        fallbackOn: ["5xx", "timeout", "rate_limit"],
+      });
+    }
+  }
+
+  return { port, providers, aliases };
 }
