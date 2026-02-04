@@ -41,6 +41,7 @@ MINI_LLM_MODEL_ALIASES='{"gpt-fast":"openai:gpt-4o-mini","claude-fast":"anthropi
 - `GET /health` → `{ "status": "ok" }`
 - `GET /v1/models` → List of aliased models
 - `POST /v1/chat/completions` → Chat completions (streaming supported)
+- `POST /v1/images/generations` → Image generation (OpenAI Images API proxy)
 
 ### Anthropic Compatible
 - `POST /v1/messages` → Messages API (streaming supported)

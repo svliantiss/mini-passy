@@ -4,6 +4,7 @@ import { resolveAlias } from "./alias.js";
 import {
   handleOpenAIModels,
   handleOpenAIChatCompletions,
+  handleOpenAIImageGenerations,
   handleAnthropicMessages,
 } from "./router/index.js";
 
@@ -71,6 +72,32 @@ async function handleRequest(
         resolved.model
       );
     }
+  }
+
+  // OpenAI Images: POST /v1/images/generations (and /openai/v1/images/generations)
+  if (
+    (path === "/v1/images/generations" ||
+      path === "/openai/v1/images/generations") &&
+    method === "POST"
+  ) {
+    const rawBody = await parseBody(req);
+    const body = JSON.parse(rawBody);
+    const modelInput = body.model;
+
+    let resolvedModel = modelInput;
+    if (modelInput) {
+      const resolved = resolveAlias(modelInput, env.modelAliases);
+      if (resolved.provider === "openai") {
+        resolvedModel = resolved.model;
+      }
+    }
+
+    return handleOpenAIImageGenerations(
+      res,
+      body,
+      env.openaiApiKeys,
+      resolvedModel
+    );
   }
 
   // Anthropic: POST /v1/messages (and /anthropic/v1/messages)
