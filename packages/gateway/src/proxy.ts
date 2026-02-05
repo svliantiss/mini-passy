@@ -1,9 +1,17 @@
 import type http from "node:http";
 import https from "node:https";
+import httpModule from "node:http";
 import type { Provider, Alias } from "./types.js";
 
-// Connection pooling agent
-const agent = new https.Agent({
+// Connection pooling agents
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+  maxFreeSockets: 10,
+  timeout: 60000,
+});
+
+const httpAgent = new httpModule.Agent({
   keepAlive: true,
   maxSockets: 50,
   maxFreeSockets: 10,
@@ -19,6 +27,9 @@ function proxyRequest(
 ): void {
   const payload = JSON.stringify(body);
   const url = new URL(provider.url);
+  const isHttps = url.protocol === "https:";
+  const agent = isHttps ? httpsAgent : httpAgent;
+  const requestModule = isHttps ? https : httpModule;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -34,14 +45,14 @@ function proxyRequest(
 
   const options: https.RequestOptions = {
     hostname: url.hostname,
-    port: url.port || 443,
+    port: url.port || (isHttps ? 443 : 80),
     path,
     method: "POST",
     agent,
     headers,
   };
 
-  const upstream = https.request(options, (upRes) => {
+  const upstream = requestModule.request(options, (upRes) => {
     const isStreaming =
       body.stream || upRes.headers["content-type"]?.includes("text/event-stream");
 

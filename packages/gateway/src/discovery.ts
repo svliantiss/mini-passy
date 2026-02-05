@@ -1,27 +1,32 @@
 import type { Provider } from "./types.js";
 
-// Simple fetch wrapper using Node's https
+// Simple fetch wrapper using Node's https/http
 function fetchWithTimeout(
   url: string,
   options: { headers: Record<string, string>; timeout: number }
 ): Promise<{ ok: boolean; json: () => Promise<unknown> }> {
   return new Promise((resolve, reject) => {
-    const https = require("node:https");
     const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === "https:";
+    const httpModule = isHttps ? require("node:https") : require("node:http");
 
     const reqOptions = {
       hostname: urlObj.hostname,
-      port: urlObj.port || 443,
+      port: urlObj.port || (isHttps ? 443 : 80),
       path: urlObj.pathname + urlObj.search,
       method: "GET",
       headers: options.headers,
       timeout: options.timeout,
     };
 
-    const req = https.request(reqOptions, (res: any) => {
+    const req = httpModule.request(reqOptions, (res: any) => {
       let data = "";
       res.on("data", (chunk: Buffer) => (data += chunk));
       res.on("end", () => {
+        console.log(`[fetch] Response status: ${res.statusCode}, data length: ${data.length}`);
+        if (data.length > 0) {
+          console.log(`[fetch] Response preview: ${data.substring(0, 200)}`);
+        }
         resolve({
           ok: res.statusCode >= 200 && res.statusCode < 300,
           json: async () => JSON.parse(data),
@@ -29,10 +34,12 @@ function fetchWithTimeout(
       });
     });
 
-    req.on("error", (_err: Error) => {
-      reject(_err);
+    req.on("error", (err: Error) => {
+      console.log(`[fetch] Error: ${err.message}`);
+      reject(err);
     });
     req.on("timeout", () => {
+      console.log(`[fetch] Timeout after ${options.timeout}ms`);
       req.destroy();
       reject(new Error("Timeout"));
     });
@@ -51,7 +58,7 @@ export async function discoverProviders(
     try {
       const res = await fetchWithTimeout(`${provider.url}/v1/models`, {
         headers: { Authorization: `Bearer ${provider.key}` },
-        timeout: 5000,
+        timeout: 10000,
       });
       if (res.ok) {
         const data = (await res.json()) as { data?: Array<{ id: string }> };
@@ -60,9 +67,12 @@ export async function discoverProviders(
         console.log(
           `[${name}] ✓ OpenAI format, ${provider.models.length} models`
         );
+      } else {
+        console.log(`[${name}] OpenAI format returned non-OK status`);
       }
     } catch (e) {
-      console.log(`[${name}] ✗ OpenAI format failed`);
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.log(`[${name}] ✗ OpenAI format failed: ${errorMsg}`);
     }
 
     // Try Anthropic format (if OpenAI failed or for additional models)
@@ -73,7 +83,7 @@ export async function discoverProviders(
             "x-api-key": provider.key,
             "anthropic-version": "2023-06-01",
           },
-          timeout: 5000,
+          timeout: 10000,
         });
         if (res.ok) {
           const data = (await res.json()) as { data?: Array<{ id: string }> };
@@ -84,9 +94,12 @@ export async function discoverProviders(
           console.log(
             `[${name}] ✓ Anthropic format, ${anthropicModels.length} models`
           );
+        } else {
+          console.log(`[${name}] Anthropic format returned non-OK status`);
         }
       } catch (e) {
-        console.log(`[${name}] ✗ Anthropic format failed`);
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        console.log(`[${name}] ✗ Anthropic format failed: ${errorMsg}`);
       }
     }
 

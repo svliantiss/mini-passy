@@ -1,6 +1,14 @@
+#!/usr/bin/env node
 import { config } from "dotenv";
 import { resolve } from "path";
 import { startServer } from "./server.js";
+
+// Export for programmatic use
+export { startServer } from "./server.js";
+export { loadEnv } from "./env.js";
+export { discoverProviders } from "./discovery.js";
+export { proxyWithFallback } from "./proxy.js";
+export type { EnvConfig, Provider, Alias } from "./types.js";
 
 // Load .env from project root (wherever the command is run from)
 const envPath = resolve(process.cwd(), ".env");
@@ -33,4 +41,7 @@ async function main() {
   process.exit(1);
 }
 
-main();
+// Only run main if this is the entry point
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}

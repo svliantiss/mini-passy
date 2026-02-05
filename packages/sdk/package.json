@@ -1,5 +1,5 @@
 {
-  "name": "@mini-passy/sdk",
+  "name": "@mini-passy/manager",
   "version": "0.1.0",
   "description": "SDK for managing Mini-Passy gateway processes",
   "type": "module",
@@ -23,7 +23,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "mini-passy": "*"
+    "@mini-passy/sdk": "file:../gateway"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
