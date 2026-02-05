@@ -1,4 +1,9 @@
+import { config } from "dotenv";
+import { resolve } from "path";
 import { startServer } from "./server.js";
+// Load .env from project root (wherever the command is run from)
+const envPath = resolve(process.cwd(), ".env");
+config({ path: envPath });
 const port = parseInt(process.env.PORT || "3333", 10);
 async function main() {
     let currentPort = port;

@@ -25,7 +25,7 @@ function spawnGateway(config) {
         const { path: gatewayEntry, useNode } = getGatewayEntryPath();
         const env = {
             ...process.env,
-            MINI_LLM_PORT: String(port),
+            PORT: String(port),
             ...config.env,
         };
         // Use node for built JS, tsx for TypeScript source
@@ -105,7 +105,7 @@ process.on("SIGTERM", () => {
     cleanup();
     process.exit(0);
 });
-export function createMiniLLM(config = {}) {
+export function createMiniPassy(config = {}) {
     return {
         ready() {
             if (!readyPromise) {

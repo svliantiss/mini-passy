@@ -21,7 +21,9 @@ function fetchWithTimeout(url, options) {
                 });
             });
         });
-        req.on("error", reject);
+        req.on("error", (_err) => {
+            reject(_err);
+        });
         req.on("timeout", () => {
             req.destroy();
             reject(new Error("Timeout"));

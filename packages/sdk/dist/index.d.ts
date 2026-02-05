@@ -1,4 +1,4 @@
-export type { MiniLLMConfig, MiniLLMInstance } from "./types.js";
-export { createMiniLLM } from "./gateway-manager.js";
-export declare const miniLLM: import("./types.js").MiniLLMInstance;
+export type { MiniPassyConfig, MiniPassyInstance } from "./types.js";
+export { createMiniPassy } from "./gateway-manager.js";
+export declare const miniPassy: import("./types.js").MiniPassyInstance;
 //# sourceMappingURL=index.d.ts.map

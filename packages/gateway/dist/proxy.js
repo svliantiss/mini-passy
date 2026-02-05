@@ -71,22 +71,14 @@ export function proxyWithFallback(alias, body, providers, res) {
             tryNext(targetIndex + 1);
             return;
         }
-        // Check if provider has this model
-        if (!provider.models.includes(target.model)) {
-            errors.push(`${target.provider}: model ${target.model} not available`);
-            tryNext(targetIndex + 1);
-            return;
-        }
+        // Skip model availability check - assume model exists if alias is configured
+        // The provider will return an error if the model doesn't exist
         // Determine format and path
+        // If discovery failed (no format detected), assume OpenAI format as default
         let path;
         let format;
         let requestBody;
-        if (provider.openai) {
-            path = "/v1/chat/completions";
-            format = "openai";
-            requestBody = { ...body, model: target.model };
-        }
-        else if (provider.anthropic) {
+        if (provider.anthropic) {
             path = "/v1/messages";
             format = "anthropic";
             // Convert OpenAI format to Anthropic
@@ -99,9 +91,10 @@ export function proxyWithFallback(alias, body, providers, res) {
             };
         }
         else {
-            errors.push(`${target.provider}: no compatible format`);
-            tryNext(targetIndex + 1);
-            return;
+            // Default to OpenAI format (works for OpenAI, Nebius, DeepInfra, etc.)
+            path = "/v1/chat/completions";
+            format = "openai";
+            requestBody = { ...body, model: target.model };
         }
         // For simplicity, we don't do complex fallback detection here
         // In a production system, you'd wrap this and detect 5xx/timeout errors

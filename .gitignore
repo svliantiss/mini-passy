@@ -1,4 +1,29 @@
-project_plan.md
-node_modules
+# Dependencies
+node_modules/
+
+# Environment variables
 .env
-.vscode
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+*.tgz
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation and research (not for publishing)
+research/
+*.md
+!README.md
+!packages/*/README.md
+
+# Test files
+TESTING_PLAN.md
+STRUCTURE_COMPARISON.md
+
+# Misc
+project_plan.md
+.DS_Store
