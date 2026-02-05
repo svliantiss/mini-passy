@@ -55,9 +55,9 @@ PORT=9999
 ### 3. Start the Gateway
 
 ```bash
-npx passy
+npx mini-passy
 # or
-bunx passy
+bunx mini-passy
 ```
 
 ## Usage
