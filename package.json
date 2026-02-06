@@ -24,7 +24,7 @@
 		"demo": "npx tsx packages/demo/index.ts",
 		"test-app": "npx tsx packages/test-app/server.ts",
 		"smoke-test": "npx tsx packages/dev-cli/smoke-test.ts",
-		"build": "npm run build --workspace=mini-passy && npm run build --workspace=@mini-passy/sdk",
+		"build": "npm run build --workspace=@mini-passy && npm run build --workspace=@mini-passy/manager",
 		"clean": "npm run clean --workspaces",
 		"start": "node packages/gateway/dist/index.js",
 		"dev": "npx tsx packages/gateway/src/index.ts"

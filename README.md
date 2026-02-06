@@ -1,4 +1,4 @@
-# @mini-passy/sdk
+# @mini-passy
 
 A lightweight, zero-config LLM gateway SDK for multiple AI providers with automatic model discovery and format normalization.
 
@@ -17,9 +17,9 @@ A lightweight, zero-config LLM gateway SDK for multiple AI providers with automa
 ### 1. Install
 
 ```bash
-npm install @mini-passy/sdk
+npm install @mini-passy
 # or
-bun add @mini-passy/sdk
+bun add @mini-passy
 ```
 
 ### 2. Configure Environment
@@ -55,9 +55,11 @@ PORT=9999
 ### 3. Start the Gateway
 
 ```bash
-npx mini-passy
+npx @mini-passy
+# or pin to latest
+npx @mini-passy@latest
 # or
-bunx mini-passy
+bunx @mini-passy
 ```
 
 ## Usage
@@ -95,8 +97,8 @@ curl -X POST http://localhost:9999/v1/messages \
 ## Programmatic Usage
 
 ```typescript
-import { loadEnv, discoverProviders } from '@mini-passy/sdk';
-import { proxyWithFallback } from '@mini-passy/sdk';
+import { loadEnv, discoverProviders } from '@mini-passy';
+import { proxyWithFallback } from '@mini-passy';
 
 // Load configuration
 const env = loadEnv();
