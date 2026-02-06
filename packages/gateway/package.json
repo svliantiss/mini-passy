@@ -46,6 +46,6 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/svliantiss/mini-passy.git"
+		"url": "git+https://github.com/svliantiss/mini-passy.git"
 	}
 }
