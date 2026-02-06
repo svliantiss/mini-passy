@@ -18,13 +18,16 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
       
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
       - name: Install dependencies
-        run: npm install
-        working-directory: packages/gateway
+        run: pnpm install
       
       - name: Build package
-        run: npm run build
-        working-directory: packages/gateway
+        run: pnpm run build --workspace=@mini-passy/sdk
       
       - name: Publish to NPM
         run: npm publish --access public

@@ -1,5 +1,5 @@
 {
-	"name": "@mini-passy",
+	"name": "@mini-passy/sdk",
 	"version": "0.1.1",
 	"description": "Lightweight AI gateway SDK for routing LLM requests",
 	"type": "module",

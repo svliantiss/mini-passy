@@ -23,7 +23,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@mini-passy": "^0.1.0"
+    "@mini-passy/sdk": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
