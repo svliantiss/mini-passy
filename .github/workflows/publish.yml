@@ -26,23 +26,7 @@ jobs:
         run: npm run build
         working-directory: packages/gateway
       
-      - name: Publish to NPM (@mini-passy/sdk)
-        run: npm publish --access public
-        working-directory: packages/gateway
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_SVLIANTISS }}
-
-      # Publish same package as @mini-passy so npx @mini-passy and bunx @mini-passy work (no trailing /sdk)
-      - name: Rewrite package name to @mini-passy
-        run: |
-          node -e "
-          const fs = require('fs');
-          const p = require('./package.json');
-          p.name = '@mini-passy';
-          fs.writeFileSync('./package.json', JSON.stringify(p, null, 2));
-          "
-        working-directory: packages/gateway
-      - name: Publish to NPM (@mini-passy)
+      - name: Publish to NPM
         run: npm publish --access public
         working-directory: packages/gateway
         env:
