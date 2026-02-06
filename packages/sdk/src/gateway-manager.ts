@@ -1,7 +1,4 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import { existsSync } from "node:fs";
 import { waitForHealth } from "./port.js";
 import type { MiniPassyConfig, MiniPassyInstance } from "./types.js";
 
@@ -11,34 +8,21 @@ let gatewayProcess: ChildProcess | null = null;
 let gatewayPort: number | null = null;
 let readyPromise: Promise<void> | null = null;
 
-function getGatewayEntryPath(): { path: string; useNode: boolean } {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  // Try to find the built JS version first (for production), fallback to TS (for development)
-  const builtPath = join(__dirname, "../../gateway/dist/index.js");
-  const sourcePath = join(__dirname, "../../gateway/src/index.ts");
-
-  // Check if built version exists
-  if (existsSync(builtPath)) {
-    return { path: builtPath, useNode: true };
-  }
-  return { path: sourcePath, useNode: false };
+function getGatewayCommand(): { command: string; args: string[] } {
+  // Use npx to run the published @mini-passy/sdk package
+  return { command: "npx", args: ["@mini-passy/sdk"] };
 }
 
 function spawnGateway(config: MiniPassyConfig): Promise<number> {
   return new Promise((resolve, reject) => {
     const port = config.port || DEFAULT_PORT;
-    const { path: gatewayEntry, useNode } = getGatewayEntryPath();
+    const { command, args } = getGatewayCommand();
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       PORT: String(port),
       ...config.env,
     };
-
-    // Use node for built JS, tsx for TypeScript source
-    const command = useNode ? "node" : "npx";
-    const args = useNode ? [gatewayEntry] : ["tsx", gatewayEntry];
 
     gatewayProcess = spawn(command, args, {
       env,
