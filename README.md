@@ -97,8 +97,8 @@ curl -X POST http://localhost:9999/v1/messages \
 ## Programmatic Usage
 
 ```typescript
-import { loadEnv, discoverProviders } from '@mini-passy/sdk';
-import { proxyWithFallback } from '@mini-passy/sdk';
+import { loadEnv, discoverProviders } from '@mini-passy';
+import { proxyWithFallback } from '@mini-passy';
 
 // Load configuration
 const env = loadEnv();

@@ -9,7 +9,7 @@ let gatewayPort: number | null = null;
 let readyPromise: Promise<void> | null = null;
 
 function getGatewayCommand(): { command: string; args: string[] } {
-  // npx/bunx without /sdk: npx @mini-passy or npx @mini-passy@latest
+  // npx/bunx @mini-passy or @mini-passy@latest (no trailing /sdk)
   return { command: "npx", args: ["@mini-passy"] };
 }
 
