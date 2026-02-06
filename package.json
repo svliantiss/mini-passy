@@ -5,9 +5,16 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/passy-ai/mini-passy.git"
+		"url": "git+https://github.com/passy-ai/mini-passy.git"
 	},
-	"keywords": ["ai", "llm", "gateway", "openai", "anthropic", "proxy"],
+	"keywords": [
+		"ai",
+		"llm",
+		"gateway",
+		"openai",
+		"anthropic",
+		"proxy"
+	],
 	"engines": {
 		"node": ">=18.0.0"
 	},
