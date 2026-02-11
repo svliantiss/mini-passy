@@ -1,6 +1,6 @@
 {
 	"name": "@mini-passy/sdk",
-	"version": "0.1.3",
+	"version": "0.1.4",
 	"description": "Lightweight AI gateway SDK for routing LLM requests",
 	"type": "module",
 	"main": "./dist/index.js",
