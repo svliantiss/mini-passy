@@ -3,7 +3,7 @@ import https from "node:https";
 import httpModule from "node:http";
 import type { Provider, Alias } from "./types.js";
 
-// Connection pooling agents
+// Connection pooling agents for upstream calls
 const httpsAgent = new https.Agent({
   keepAlive: true,
   maxSockets: 50,
@@ -53,18 +53,131 @@ function proxyRequest(
   };
 
   const upstream = requestModule.request(options, (upRes) => {
-    const isStreaming =
-      body.stream || upRes.headers["content-type"]?.includes("text/event-stream");
+    // Detect whether the client requested streaming and whether the upstream
+    // is already sending SSE. We want to:
+    // - passthrough real SSE streams from providers like OpenAI, and
+    // - convert single JSON responses into OpenAI-style SSE when stream=true.
+    const wantsStream = Boolean((body as { stream?: boolean }).stream);
+    const upstreamContentType = upRes.headers["content-type"] || "";
+    const upstreamIsSSE = upstreamContentType.includes("text/event-stream");
 
-    res.writeHead(upRes.statusCode || 200, {
-      "Content-Type": isStreaming ? "text/event-stream" : "application/json",
-      ...(isStreaming && {
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      }),
+    // Case 1: Upstream is already streaming (OpenAI-style SSE) or client did not request stream.
+    // In this case we just proxy the response as-is and keep headers simple.
+    if (upstreamIsSSE || !wantsStream) {
+      const isStreaming = upstreamIsSSE || wantsStream;
+
+      res.writeHead(upRes.statusCode || 200, {
+        "Content-Type": isStreaming ? "text/event-stream" : "application/json",
+        ...(isStreaming && {
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        }),
+      });
+
+      upRes.pipe(res);
+      return;
+    }
+
+    // Case 2: Client requested stream=true but upstream responded with a single JSON body.
+    // To keep IDEs like Cursor compatible, we transform the JSON response into
+    // an OpenAI chat.completion.chunk SSE stream with a final [DONE] sentinel.
+    const chunks: Buffer[] = [];
+
+    upRes.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
     });
 
-    upRes.pipe(res);
+    upRes.on("end", () => {
+      const statusCode = upRes.statusCode || 200;
+      const rawBody = Buffer.concat(chunks).toString("utf8");
+
+      try {
+        const completion = JSON.parse(rawBody) as {
+          id?: string;
+          object?: string;
+          created?: number;
+          model?: string;
+          choices?: Array<{
+            index?: number;
+            message?: { role?: string; content?: string };
+            finish_reason?: string | null;
+          }>;
+          usage?: unknown;
+          [key: string]: unknown;
+        };
+
+        const baseId = completion.id ?? `chatcmpl-${Date.now()}`;
+        const baseCreated =
+          completion.created ?? Math.floor(Date.now() / 1000);
+        const baseModel =
+          completion.model ??
+          (body.model as string | undefined) ??
+          provider.name;
+
+        const firstChoice = completion.choices?.[0];
+        const messageContent =
+          firstChoice?.message?.content ?? rawBody;
+        const finishReason = firstChoice?.finish_reason ?? "stop";
+
+        // First SSE chunk: delta with assistant role and content.
+        const deltaChunk = {
+          id: baseId,
+          object: "chat.completion.chunk",
+          created: baseCreated,
+          model: baseModel,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                content: messageContent,
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+
+        // Second SSE chunk: finish event (empty delta, finish_reason + usage if present).
+        const finishChunk: Record<string, unknown> = {
+          id: baseId,
+          object: "chat.completion.chunk",
+          created: baseCreated,
+          model: baseModel,
+          choices: [
+            {
+              index: 0,
+              delta: {},
+              finish_reason: finishReason,
+            },
+          ],
+        };
+
+        if (completion.usage) {
+          finishChunk.usage = completion.usage;
+        }
+
+        const ssePayload =
+          `data: ${JSON.stringify(deltaChunk)}\n\n` +
+          `data: ${JSON.stringify(finishChunk)}\n\n` +
+          "data: [DONE]\n\n";
+
+        res.writeHead(statusCode, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        });
+        res.end(ssePayload);
+      } catch (err) {
+        // If anything goes wrong during transformation, fall back to JSON
+        // so the client at least receives a valid response.
+        console.error(
+          `[${provider.name}] Failed to transform JSON response to SSE:`,
+          err
+        );
+        res.writeHead(statusCode, { "Content-Type": "application/json" });
+        res.end(rawBody);
+      }
+    });
   });
 
   upstream.on("error", (err) => {

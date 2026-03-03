@@ -1,8 +1,10 @@
+# Publish only on version tags (e.g. v0.1.3) to avoid re-publishing the same version.
+# Release flow: git tag v0.1.3 && git push origin v0.1.3
+# Version is taken from the tag so it is never hardcoded or out of sync.
 name: Publish to NPM
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -11,21 +13,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-      
+
+      # Set package version from git tag (e.g. v0.1.3 -> 0.1.3); on workflow_dispatch keep package.json version
+      - name: Set version from tag
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(node -p 'require(\"./packages/gateway/package.json\").version')" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Write version to package.json
+        run: node -e "
+          const fs = require('fs');
+          const p = require('./package.json');
+          p.version = process.env.VERSION;
+          fs.writeFileSync('./package.json', JSON.stringify(p, null, 2));
+        "
+        working-directory: packages/gateway
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
       - name: Install dependencies
         run: npm install
         working-directory: packages/gateway
-      
+
       - name: Build package
         run: npm run build
         working-directory: packages/gateway
-      
+
       - name: Publish to NPM
         run: npm publish --access public
         working-directory: packages/gateway
