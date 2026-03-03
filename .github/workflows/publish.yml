@@ -31,12 +31,13 @@ jobs:
           fi
 
       - name: Write version to package.json
-        run: node -e "
-          const fs = require('fs');
-          const p = require('./package.json');
-          p.version = process.env.VERSION;
-          fs.writeFileSync('./package.json', JSON.stringify(p, null, 2));
-        "
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = require('./package.json');
+            p.version = process.env.VERSION;
+            fs.writeFileSync('./package.json', JSON.stringify(p, null, 2));
+          "
         working-directory: packages/gateway
         env:
           VERSION: ${{ steps.version.outputs.version }}
