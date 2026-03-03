@@ -1,4 +1,6 @@
 import type { Provider } from "./types.js";
+import nodeHttps from "node:https";
+import nodeHttp from "node:http";
 
 // Simple fetch wrapper using Node's https/http
 function fetchWithTimeout(
@@ -8,7 +10,7 @@ function fetchWithTimeout(
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
     const isHttps = urlObj.protocol === "https:";
-    const httpModule = isHttps ? require("node:https") : require("node:http");
+    const httpModule = isHttps ? nodeHttps : nodeHttp;
 
     const reqOptions = {
       hostname: urlObj.hostname,
@@ -23,9 +25,12 @@ function fetchWithTimeout(
       let data = "";
       res.on("data", (chunk: Buffer) => (data += chunk));
       res.on("end", () => {
-        console.log(`[fetch] Response status: ${res.statusCode}, data length: ${data.length}`);
-        if (data.length > 0) {
-          console.log(`[fetch] Response preview: ${data.substring(0, 200)}`);
+        // Only log in debug mode to reduce console spam
+        if (process.env.DEBUG_DISCOVERY) {
+          console.log(`[fetch] Response status: ${res.statusCode}, data length: ${data.length}`);
+          if (data.length > 0) {
+            console.log(`[fetch] Response preview: ${data.substring(0, 200)}`);
+          }
         }
         resolve({
           ok: res.statusCode >= 200 && res.statusCode < 300,
@@ -35,11 +40,11 @@ function fetchWithTimeout(
     });
 
     req.on("error", (err: Error) => {
-      console.log(`[fetch] Error: ${err.message}`);
+      // Silently handle errors - no console spam
       reject(err);
     });
     req.on("timeout", () => {
-      console.log(`[fetch] Timeout after ${options.timeout}ms`);
+      // Silently handle timeout - no console spam
       req.destroy();
       reject(new Error("Timeout"));
     });
@@ -67,6 +72,10 @@ export async function discoverProviders(
         console.log(
           `[${name}] ✓ OpenAI format, ${provider.models.length} models`
         );
+        // Log first 20 models for debugging
+        if (provider.models.length > 0) {
+          console.log(`[${name}] Models: ${provider.models.slice(0, 20).join(", ")}${provider.models.length > 20 ? "..." : ""}`);
+        }
       } else {
         console.log(`[${name}] OpenAI format returned non-OK status`);
       }

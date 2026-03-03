@@ -9,8 +9,8 @@ let gatewayPort: number | null = null;
 let readyPromise: Promise<void> | null = null;
 
 function getGatewayCommand(): { command: string; args: string[] } {
-  // npx/bunx @mini-passy or @mini-passy@latest (no trailing /sdk)
-  return { command: "npx", args: ["@mini-passy"] };
+  // npx/bunx @mini-passy/cli or @mini-passy/cli@latest
+  return { command: "npx", args: ["@mini-passy/cli"] };
 }
 
 function spawnGateway(config: MiniPassyConfig): Promise<number> {

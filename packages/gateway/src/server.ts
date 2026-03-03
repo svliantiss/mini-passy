@@ -6,6 +6,8 @@ import type { EnvConfig } from "./types.js";
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
 
+// API Key Validation - removed, now handled inline in createRequestHandler
+
 function parseBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -49,7 +51,7 @@ function sendError(
   sendJson(res, error, status);
 }
 
-function createRequestHandler(env: EnvConfig) {
+function createRequestHandler(env: EnvConfig, authKey: string | undefined) {
   return async function handleRequest(
     req: http.IncomingMessage,
     res: http.ServerResponse
@@ -58,7 +60,7 @@ function createRequestHandler(env: EnvConfig) {
     const method = req.method || "GET";
 
     try {
-      // Health check
+      // Health check (no auth required)
       if (path === "/health" && method === "GET") {
         return sendJson(res, {
           status: "ok",
@@ -72,7 +74,7 @@ function createRequestHandler(env: EnvConfig) {
         });
       }
 
-      // List models (from aliases)
+      // List models (no auth required)
       if (path === "/v1/models" && method === "GET") {
         const data = Array.from(env.aliases.values()).map((alias) => ({
           id: alias.name,
@@ -81,6 +83,20 @@ function createRequestHandler(env: EnvConfig) {
           owned_by: alias.targets[0]?.provider || "unknown",
         }));
         return sendJson(res, { object: "list", data });
+      }
+
+      // API Key Validation for protected endpoints (only if AUTH_KEY is set)
+      if (authKey) {
+        const authHeader = req.headers["authorization"];
+        const token = authHeader?.replace("Bearer ", "");
+
+        if (!token) {
+          return sendError(res, "Missing API key. Provide Authorization: Bearer <token> header.", 401, "missing_api_key");
+        }
+
+        if (token !== authKey) {
+          return sendError(res, "Invalid API key", 401, "invalid_api_key");
+        }
       }
 
       // Chat completions
@@ -173,11 +189,14 @@ function createRequestHandler(env: EnvConfig) {
 export async function startServer(
   port: number
 ): Promise<{ port: number; stop: () => void }> {
+  // Security: Get PASSY_AUTH_KEY from environment (optional - if not set, no auth required)
+  const AUTH_KEY = process.env.PASSY_AUTH_KEY;
+
   // Load environment and discover providers
   const env = loadEnv();
   await discoverProviders(env.providers);
 
-  const server = http.createServer(createRequestHandler(env));
+  const server = http.createServer(createRequestHandler(env, AUTH_KEY));
 
   return new Promise((resolve, reject) => {
     server.on("error", (err: NodeJS.ErrnoException) => {
